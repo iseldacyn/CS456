@@ -23,7 +23,6 @@ class Client:
         self.port = port
         self.rsa = rsa
         self.aes_l = aes_l
-        self.aes_key = None
         self.disconnect = False
         self.aes = None
         self.data_to_server = None
@@ -116,7 +115,7 @@ class Client:
         # encrypt pub keys and send
         encr_n = self.rsa.encrypt_int( self.rsa.n, e, n, SALT_LEN )
         encr_e = self.rsa.encrypt_int( self.rsa.e, e, n, SALT_LEN )
-        self.data_to_server = Data( None, (encr_n, encr_e, self.aes_l, self.rsa.d), None )
+        self.data_to_server = Data( None, (encr_n, encr_e, self.aes_l), None )
         self.channel.send( dumps(self.data_to_server) )
         # decrypt aes key from server
         key, l_k, seed, l_s = loads( self.channel.recv(BUF_LEN) ).message

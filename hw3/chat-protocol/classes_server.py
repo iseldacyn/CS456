@@ -97,7 +97,7 @@ class Server:
         users = BLUE
         for user in self.user_list:
             users += user + '\n'
-        return users - '\n'
+        return users[:-1]
 
 # class for individual client threads running on server
 class ClientIO( threading.Thread ):
@@ -158,7 +158,7 @@ class ClientIO( threading.Thread ):
         self.data_to_client = Data( None, (self.server.rsa.n, self.server.rsa.e), None )
         self.client_socket.send( dumps(self.data_to_client) )
         # get encrypted pub keys and decrypt them
-        n, e, aes_l, d = loads( self.client_socket.recv(BUF_LEN) ).message
+        n, e, aes_l = loads( self.client_socket.recv(BUF_LEN) ).message
         n = self.server.rsa.decrypt_int( n, self.server.rsa.d, self.server.rsa.n, SALT_LEN )
         e = self.server.rsa.decrypt_int( e, self.server.rsa.d, self.server.rsa.n, SALT_LEN )
         # make aes key, encrypt and send
