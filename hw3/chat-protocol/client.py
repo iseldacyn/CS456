@@ -46,10 +46,10 @@ if __name__ == '__main__':
     # generate RSA keys
     not_valid = True
     while not_valid:
-        k = iic( "Choose RSA key bit length (1024, 2048, 4096): ", BLUE )
+        k = iic( "Choose RSA key bit length (1024, 2048): ", BLUE )
         not_valid = False
-        if k not in ["1024", "2048", "4096"]:
-            pic( "Bit length must be one of 1024, 2048, or 4096!", RED )
+        if k not in ["1024", "2048"]:
+            pic( "Bit length must be either 1024 or 2048!", RED )
             not_valid = True
     k = int(k)
     pic( "Generating RSA keys...", BLUE )

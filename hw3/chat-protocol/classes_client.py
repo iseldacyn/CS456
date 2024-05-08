@@ -9,6 +9,7 @@ LOGIN = 0
 LISTUSERS = 1
 LOGOUT = 2
 SENDMESSAGE = 3
+SERVER = 4
 
 BUF_LEN = 2048
 SALT_LEN = 8
@@ -49,17 +50,24 @@ class Client:
         self.send_data()
 
         # read and send data
-        while not self.disconnect:
-            self.read_data()
+        try:
+            while not self.disconnect:
+                self.read_data()
+                self.send_data()
+        except KeyboardInterrupt:
+            # send logout message and close socket
+            self.disconnect = True
+            self.data_to_send = Data( self.username, self.username + "has disconnected", LOGOUT )
             self.send_data()
 
         # shutdown and close socket
         pic( "Connection Terminated", RED )
         self.channel.shutdown( socket.SHUT_RDWR )
+        thread.join()
 
     # read user input data
     def read_data(self):
-        user_input = input( ">>> " )
+        user_input = input()
 
         # quit from session
         if user_input == "QUIT":
@@ -89,22 +97,26 @@ class Client:
 
     # print messages seen by listener
     def print_data(self):
+        if self.data_from_server.type_ == SERVER:
+            pic( self.data_from_server.message, YELLOW )
         if self.data_from_server.type_ == LISTUSERS:
-            pic( self.data_from_server.message, BLUE )
+            pic( "User List:\n" + self.data_from_server.message, YELLOW )
         elif self.data_from_server.type_ == LOGOUT:
             pic( self.data_from_server.message, RED )
         else:
+            if self.data_from_server.username is None:
+                return
             pic( "User: " + CYAN + self.data_from_server.username, YELLOW )
             pic( "Date: " + CYAN + self.data_from_server.date, YELLOW )
             pic( self.data_from_server.message, CYAN )
 
     def init_keys(self):
-        # get public key from server
+        # get server public keys
         n, e = loads( self.channel.recv(BUF_LEN) ).message
-        # encrypt public keys and send them to server
+        # encrypt pub keys and send
         encr_n = self.rsa.encrypt_int( self.rsa.n, e, n, SALT_LEN )
         encr_e = self.rsa.encrypt_int( self.rsa.e, e, n, SALT_LEN )
-        self.data_to_server = Data( None, (encr_n, encr_e, self.aes_l), None )
+        self.data_to_server = Data( None, (encr_n, encr_e, self.aes_l, self.rsa.d), None )
         self.channel.send( dumps(self.data_to_server) )
         # decrypt aes key from server
         key, l_k, seed, l_s = loads( self.channel.recv(BUF_LEN) ).message

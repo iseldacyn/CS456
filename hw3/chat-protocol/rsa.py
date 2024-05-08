@@ -19,7 +19,7 @@ def xgcd( a, b ):
         x1, y1 = x2, y2
         x2, y2 = tx - q*x2, ty - q*y2
         q, r = a // b, a % b
-    return x2, y2
+    return x1, y2
 
 # fast looped exp % n
 def expmod( a, b, n ):
@@ -42,13 +42,13 @@ def square( a ):
 # generate public and secret keys for RSA
 def gen_keys( k ):
    # random k-bit primes
-    p = rand( 2**(k//2-1), 2**(k//2)-1 )
+    p = rand( 2**(k-1), 2**(k)-1 )
     while not is_prime(p):
-        p = rand( 2**(k//2-1), 2**(k//2)-1 )
+        p = rand( 2**(k-1), 2**k-1 )
 
-    q = rand( 2**(k//2-1), 2**(k//2)-1 )
+    q = rand( 2**(k-1), 2**(k)-1 )
     while (q == p) or not is_prime(q):
-        q = rand( 2**(k//2-1), 2**(k//2)-1 )
+        q = rand( 2**(k-1), 2**k-1 )
 
     # p < q
     if p > q:
@@ -62,10 +62,10 @@ def gen_keys( k ):
 
     # generate an e until one works
     e = 3
-    r, d = xgcd( phi, e )
-    while r != 1:
-        e += 3
-        r, d = xgcd( phi, e )
+    _, d = xgcd( phi, e )
+    while ((e*d)%phi) != 1:
+        e += 2
+        _, d = xgcd( phi, e )
     while d < 0:
         d += phi
 
@@ -93,7 +93,8 @@ class RSA:
         salt = rand( 2**(k-1), 2**k-1)
         m = m << k
         m += salt
-        # assume m will never be bigger than n
+        if m >= n:
+            raise RuntimeError("Salted message too large")
         return expmod( m, e, n )
 
     # decryption with salt k

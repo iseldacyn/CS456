@@ -1,6 +1,6 @@
 from cryptography.hazmat.primitives.ciphers import Cipher
-from cryptography.hazmat.primitives.ciphers.algorithms import AES
-from cryptography.hazmat.primitives.ciphers.modes import CFB
+from cryptography.hazmat.primitives.ciphers.algorithms import AES as aes
+from cryptography.hazmat.primitives.ciphers.modes import CFB as cfb
 from color import *
 from math import ceil
 import os
@@ -10,11 +10,11 @@ def generate_key( size ):
         return rand(size).to_bytes( ceil(size/8), 'big' )
 
 def generate_seed():
-    return os.urandom( AES.block_size // 8 )
+    return os.urandom( aes.block_size // 8 )
 
 class AES:
     def __init__( self, key, seed ):
-        self.cipher = Cipher( AES(key), modes.CFB(seed) )
+        self.cipher = Cipher( aes(key), cfb(seed) )
         self.key = key
         self.seed = seed
 

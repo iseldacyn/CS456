@@ -9,6 +9,7 @@ LOGIN = 0
 LISTUSERS = 1
 LOGOUT = 2
 SENDMESSAGE = 3
+SERVER = 4
 
 BUF_LEN = 2048
 SALT_LEN = 8
@@ -41,28 +42,31 @@ class Server:
         sock.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR, 1 )
         sock.bind( ('', self.port) )
 
-        while not self.disconnect:
-            sock.listen()
-            pic( "Searching for clients...", BLUE )
+        try:
+            while not self.disconnect:
+                sock.listen()
+                pic( "Searching for clients...", BLUE )
 
-            # create new socket for client and append to client list
-            new_client_sock, _ = sock.accept()
-            pic( "Client found!", GREEN )
-            new_client = ClientIO( self, new_client_sock )
+                # create new socket for client and append to client list
+                new_client_sock, _ = sock.accept()
+                pic( "Client found!", GREEN )
+                new_client = ClientIO( self, new_client_sock )
 
-            # add client to list and create new thread for them
-            self.clientIO_list.append( new_client )
-            thread = threading.Thread( target=new_client.start, daemon=True )
-            thread.start()
+                # add client to list and create new thread for them
+                self.clientIO_list.append( new_client )
+                thread = threading.Thread( target=new_client.start, daemon=True )
+                thread.start()
+        except KeyboardInterrupt:
+            pic( "Shutting down server...", RED )
 
         sock.shutdown( socket.SHUT_RDWR )
 
     # send message to all users
     @synchronized_with_attr("lock")
     def broadcast( self, data_to_broadcast ):
-        if not self.clientIO_list:
-            return
         for client in self.clientIO_list:
+            if client.client_socket is None:
+                continue
             if client.data_from_client.type_ == LOGOUT:
                 continue
             client.data_to_client = data_to_broadcast
@@ -90,10 +94,10 @@ class Server:
 
     # return string of all users
     def get_users(self):
-        users = ''
+        users = BLUE
         for user in self.user_list:
             users += user + '\n'
-        return "User List:\n" + users
+        return users - '\n'
 
 # class for individual client threads running on server
 class ClientIO( threading.Thread ):
@@ -114,8 +118,8 @@ class ClientIO( threading.Thread ):
 
             # someone joins chat
             if self.data_from_client.type_ == LOGIN:
-                self.server.broadcast_to( self.data_from_client )
-                continue
+                self.data_from_client = Data( None, self.data_from_client.username + " joined the chat", SERVER )
+                self.server.broadcast( self.data_from_client )
 
             # list active users
             elif self.data_from_client.type_ == LISTUSERS:
@@ -126,14 +130,15 @@ class ClientIO( threading.Thread ):
                 self.server.broadcast( self.data_from_client )
         
         # shutdown and close sockets
-        self.server.remove( self, data_from_client.username )
         self.client_socket.shutdown( socket.SHUT_RDWR )
+        self.client_socket = None
+        self.server.remove( self, data_from_client.username )
 
     # get data from stream
     def get_data(self):
         data = self.client_socket.recv(BUF_LEN)
         if data != b'':
-            self.data_from_client = loads( self.aes.decrpyt(data) )
+            self.data_from_client = loads( self.aes.decrypt(data) )
 
         # logout of server
         if self.data_from_client == LOGOUT:
@@ -149,11 +154,11 @@ class ClientIO( threading.Thread ):
         self.client_socket.send( self.data_to_client )
 
     def init_keys(self):
-        # send public key
+        # send public keys to client
         self.data_to_client = Data( None, (self.server.rsa.n, self.server.rsa.e), None )
         self.client_socket.send( dumps(self.data_to_client) )
-        # get encrypted public key and decrypt
-        n, e, aes_l = loads( self.client_socket.recv(BUF_LEN) ).message
+        # get encrypted pub keys and decrypt them
+        n, e, aes_l, d = loads( self.client_socket.recv(BUF_LEN) ).message
         n = self.server.rsa.decrypt_int( n, self.server.rsa.d, self.server.rsa.n, SALT_LEN )
         e = self.server.rsa.decrypt_int( e, self.server.rsa.d, self.server.rsa.n, SALT_LEN )
         # make aes key, encrypt and send
@@ -161,4 +166,4 @@ class ClientIO( threading.Thread ):
         encr_key = self.server.rsa.encrypt( self.aes.key, e, n, SALT_LEN )
         encr_seed = self.server.rsa.encrypt( self.aes.seed, e, n, SALT_LEN )
         self.data_to_client = Data( None, (encr_key, len(self.aes.key), encr_seed, len(self.aes.seed)), None )
-        self.client_socket.send( dumps( self.data_do_client ) )
+        self.client_socket.send( dumps( self.data_to_client ) )
