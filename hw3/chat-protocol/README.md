@@ -8,7 +8,7 @@ Then, in another terminal run
 
 ```python client.py```
 
-# Cryptographic Specifications
+## Cryptographic Specifications
 
 The full specifications for the schema are as follows:
 
@@ -18,7 +18,7 @@ The full specifications for the schema are as follows:
 - The server generates a shared AES key, encrypts it using the clients public RSA key, and sends its to the client
 - The client and server are now able to share information securely
 
-# Known Bugs/Issues
+## Known Bugs/Issues
 
 - Disconnecting a client seems to break the server if not closed properly
 - Text overflows if messages are sent while typing a response
